@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -17,37 +16,39 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+
 	connStr := os.Getenv("DATABASE_URL")
 	conn, err := pgx.Connect(context.Background(), connStr)
 	if err != nil {
-		panic(err)
+		log.Fatal("Unable to connect to DB:", err)
 	}
-
 	defer conn.Close(context.Background())
-	_, err = conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS playing_with_neon(id SERIAL PRIMARY KEY, name TEXT NOT NULL, value REAL);")
-	if err != nil {
-		panic(err)
-	}
 
-	_, err = conn.Exec(context.Background(), "INSERT INTO playing_with_neon(name, value) SELECT LEFT(md5(i::TEXT), 10), random() FROM generate_series(1, 10) s(i);")
-	if err != nil {
-		panic(err)
-	}
+	log.Println("Connected to DB")
 
-	rows, err := conn.Query(context.Background(), "SELECT * FROM playing_with_neon")
-	if err != nil {
-		panic(err)
-	}
+	// bootstrap
 	
-	defer rows.Close()
-	for rows.Next() {
-		var id int32
-		var name string
-		var value float32
-		if err := rows.Scan(&id, &name, &value); err != nil {
-			panic(err)
-		}
-		fmt.Printf("%d | %s | %f\n", id, name, value)
+	runScraper(conn)
+	// runAPI(conn)
+}
+
+func runScraper(conn *pgx.Conn) {
+	log.Println("Running scraper...")
+
+	// Pagaidām fake data (testam)
+	_, err := conn.Exec(context.Background(),
+		`INSERT INTO internships (title, company, location, url)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (url) DO NOTHING`,
+		"Backend Intern",
+		"Test Company",
+		"Remote",
+		"https://example.com/job/1",
+	)
+
+	if err != nil {
+		log.Println("Insert error:", err)
 	}
 
+	log.Println("Scraper finished")
 }
